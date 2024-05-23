@@ -10,6 +10,7 @@ const $input = document.querySelector('input')
 let wordsSelected = []
 let currentTime = 0
 
+
 startGame()
 initEvents()
 
@@ -39,7 +40,9 @@ function startGame() {
 
 
 function initEvents() {
-    $input.focus()
+    document.addEventListener('keydown', () => {
+        $input.focus()
+    })
     $input.addEventListener('keydown', handleKeyDown)
     $input.addEventListener('keyup', handleKeyUp)
 }
@@ -48,8 +51,51 @@ function handleKeyDown(event) {
     const $currentWord = $paragraph.querySelector('x-word.active')
     const $currentLetter = $currentWord.querySelector('x-letter.active')
     const { key } = event
+
+
     if (key === ' ') {
         event.preventDefault()
+        const $nextWord = $currentWord.nextElementSibling
+        if (!$nextWord) {
+            gameover()
+        }
+
+        const $nextLetter = $nextWord.querySelector('x-letter')
+        const isCorrect = $currentWord.querySelectorAll('x-letter.correct').length === $currentWord.textContent.length
+        const wordClass = isCorrect ? 'correct' : 'wrong'
+        $currentWord.classList.add(wordClass)
+
+        $currentWord.classList.remove('active')
+        $currentLetter.classList.remove('active')
+
+        $nextWord.classList.add('active')
+        $nextLetter.classList.add('active')
+
+        $input.value = ''
+    }
+
+    if (key === 'Backspace') {
+        const $prevWord = $currentWord.previousElementSibling
+        const isEmpty = $input.value.length === 0
+        const isAllCorrect = $prevWord.querySelectorAll(':not(.correct)').length === 0
+
+        if (!$prevWord || !isEmpty || isAllCorrect) return
+        event.preventDefault()
+        $currentWord.classList.remove('active')
+        $currentLetter.classList.remove('active')
+
+        $prevWord.classList.remove('correct', 'wrong')
+        $prevWord.classList.add('active')
+
+        const $userLetters = $prevWord.querySelectorAll(':is(.correct,.wrong)')
+        const lastLetterIndex = $userLetters.length
+        const $allLetters = Array.from($prevWord.children)
+        const $prevLetter = $allLetters[lastLetterIndex]
+        $prevLetter.classList.add('active')
+        $input.value = Array.from($userLetters).map($letter => {
+            const isCorrect = $letter.classList.contains('correct')
+            return isCorrect ? $letter.textContent : '*'
+        }).join('')
     }
 }
 
@@ -73,9 +119,14 @@ function handleKeyUp() {
 
     const $nextLetter = $allLetters[$input.value.length]
     const $letterChose = $nextLetter ?? $currentLetter
-    const letterClass = !$nextLetter && "is-last"
+    const letterClass = $nextLetter ? ['active'] : ['active', 'is-last']
 
-    $letterChose.classList.add('active', letterClass)
+    $letterChose.classList.add(...letterClass)
+
+    const $nextWord = $currentWord.nextElementSibling
+    if (!$nextWord && $letterChose.classList.contains('is-last')) {
+        gameover()
+    }
 
 }
 

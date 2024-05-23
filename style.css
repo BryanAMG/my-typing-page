@@ -73,7 +73,7 @@ x-word {
     border-bottom: 3px dashed transparent;
 
     &.wrong {
-        border-bottom: var(--wrong);
+        border-color: var(--wrong);
     }
 }
 

@@ -6,16 +6,29 @@ import { getCounterFormat, getHtmlFromArray } from './utils.js'
 const $paragraph = document.querySelector('p')
 const $timer = document.querySelector('time')
 const $input = document.querySelector('input')
+const $game = document.querySelector('#game')
+const $results = document.querySelector('#results')
+const $wpm = $results.querySelector('#results-wpm')
+const $accuracy = $results.querySelector('#results-accuracy')
+const $button = document.querySelector('#reload-button')
 
 let wordsSelected = []
 let currentTime = 0
-
+let playing
 
 startGame()
 initEvents()
 
 function startGame() {
-    wordsSelected = words.slice(1, 20)
+    $game.style.display = 'flex'
+    $results.style.display = 'none'
+    $input.value = ''
+
+    playing = false
+
+    wordsSelected = words.toSorted(
+        () => Math.random() - 0.5
+    ).slice(0, 30)
     currentTime = LIMIT_TIME
 
     $timer.textContent = getCounterFormat(currentTime)
@@ -26,25 +39,28 @@ function startGame() {
     const $firstLetter = $firstWord.querySelector('x-letter')
     $firstWord.classList.add('active')
     $firstLetter.classList.add('active')
-
-    const countdownID = setInterval(() => {
-        currentTime--
-        $timer.textContent = getCounterFormat(currentTime)
-        if (currentTime === 0) {
-            gameover()
-            clearInterval(countdownID)
-
-        }
-    }, 1000)
 }
 
 
 function initEvents() {
     document.addEventListener('keydown', () => {
         $input.focus()
+        if (!playing) {
+            playing = true
+            const intervalId = setInterval(() => {
+                currentTime--
+                $timer.textContent = currentTime
+
+                if (currentTime === 0) {
+                    clearInterval(intervalId)
+                    gameOver()
+                }
+            }, 1000)
+        }
     })
     $input.addEventListener('keydown', handleKeyDown)
     $input.addEventListener('keyup', handleKeyUp)
+    $button.addEventListener('click', startGame)
 }
 
 function handleKeyDown(event) {
@@ -57,7 +73,7 @@ function handleKeyDown(event) {
         event.preventDefault()
         const $nextWord = $currentWord.nextElementSibling
         if (!$nextWord) {
-            gameover()
+            gameOver()
         }
 
         const $nextLetter = $nextWord.querySelector('x-letter')
@@ -76,10 +92,11 @@ function handleKeyDown(event) {
 
     if (key === 'Backspace') {
         const $prevWord = $currentWord.previousElementSibling
+        if (!$prevWord) return
         const isEmpty = $input.value.length === 0
         const isAllCorrect = $prevWord.querySelectorAll(':not(.correct)').length === 0
 
-        if (!$prevWord || !isEmpty || isAllCorrect) return
+        if (!isEmpty || isAllCorrect) return
         event.preventDefault()
         $currentWord.classList.remove('active')
         $currentLetter.classList.remove('active')
@@ -88,10 +105,13 @@ function handleKeyDown(event) {
         $prevWord.classList.add('active')
 
         const $userLetters = $prevWord.querySelectorAll(':is(.correct,.wrong)')
-        const lastLetterIndex = $userLetters.length
         const $allLetters = Array.from($prevWord.children)
-        const $prevLetter = $allLetters[lastLetterIndex]
-        $prevLetter.classList.add('active')
+
+        const isLastLetter = $userLetters.length === $prevWord.textContent.trim().length
+        const lastUserLetter = isLastLetter ? $userLetters.length - 1 : $userLetters.length
+        const $letterToGo = $allLetters[lastUserLetter]
+        $letterToGo.classList.add('active')
+
         $input.value = Array.from($userLetters).map($letter => {
             const isCorrect = $letter.classList.contains('correct')
             return isCorrect ? $letter.textContent : '*'
@@ -125,11 +145,26 @@ function handleKeyUp() {
 
     const $nextWord = $currentWord.nextElementSibling
     if (!$nextWord && $letterChose.classList.contains('is-last')) {
-        gameover()
+        gameOver()
     }
 
 }
 
-function gameover() {
-    console.log('gameover')
+function gameOver() {
+    $game.style.display = 'none'
+    $results.style.display = 'flex'
+
+    const correctWords = $paragraph.querySelectorAll('x-word.correct').length
+    const correctLetter = $paragraph.querySelectorAll('x-letter.correct').length
+    const incorrectLetter = $paragraph.querySelectorAll('x-letter.wrong').length
+
+    const totalLetters = correctLetter + incorrectLetter
+
+    const accuracy = totalLetters > 0
+        ? (correctLetter / totalLetters) * 100
+        : 0
+    console.log({ correctLetter, totalLetters })
+    const wpm = correctWords * 60 / LIMIT_TIME
+    $wpm.textContent = wpm
+    $accuracy.textContent = `${accuracy.toFixed(2)}%`
 }
